@@ -1,0 +1,64 @@
+//*** this is the code
+
+SET @sql = NULL;
+SELECT
+  GROUP_CONCAT(DISTINCT
+    CONCAT(
+      'MAX(CASE WHEN rownum = ',
+      rownum,
+      ' THEN tiempo_marcado END) AS vuelta_',
+      rownum
+    )
+  ) INTO @sql
+from
+(
+ select 
+       @row := case when @nombre_atleta = nombre_atleta then @row + 1 else @row := 1 end as rownum,
+       @nombre_atleta := nombre_atleta as p,
+       tiempo_marcado
+from
+    (select @row := 1) i,
+    (select @nombre_atleta := nombre_atleta as nombre_atleta, tiempo_marcado 
+    from RFcxNb_resultados_eventos  
+    where id_evento = 30 
+    order by nombre_atleta) t
+) s
+order BY tiempo_marcado;
+
+
+SET @sql 
+  = CONCAT('SELECT nombre_atleta, ', @sql, ' 
+           from
+           (
+             select nombre_atleta,
+               tiempo_marcado,
+               @row:=if(@prev=nombre_atleta, @row,0) + 1 as rownum,
+               @prev:=nombre_atleta 
+             from RFcxNb_resultados_eventos AS e, (SELECT @row:=0) r
+					WHERE id_evento = 30
+             order by nombre_atleta, tiempo_marcado
+           ) s
+           group by nombre_atleta
+           order by nombre_atleta, tiempo_marcado');
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+/// this is the table
+CREATE TABLE `RFcxNb_resultados_eventos` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id_evento` int(11) NOT NULL,
+  `tiempo_marcado` time NOT NULL,
+  `nro_chip` int(11) NOT NULL,
+  `nombre_atleta` varchar(50) CHARACTER SET utf8 COLLATE utf8_spanish_ci NOT NULL,
+  `edad_atleta` int(11) NOT NULL,
+  `genero_atleta` varchar(15) NOT NULL,
+  `categoria` varchar(30) NOT NULL,
+  `nro_heat` int(11) NOT NULL,
+  `tiempo_salida` time NOT NULL,
+  `tiempo_definitivo` time NOT NULL,
+  `tiempo_en_texto` varchar(8) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=513 DEFAULT CHARSET=latin1;
+
